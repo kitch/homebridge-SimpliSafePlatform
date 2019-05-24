@@ -1,4 +1,4 @@
-//const { System, SystemV2, SystemV3 } = require('./system');
+
 var websession = require('https');
 
 const URL_HOSTNAME = 'api.simplisafe.com';
