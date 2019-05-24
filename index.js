@@ -258,7 +258,7 @@ SimpliSafe.prototype.removeAccessory = function() {
 */
 var API = require('./client/api.js');
 async function main() {
-  var ss = new API('1CDD92');
+  var ss = new API(SerialNumber);
   await ss.login_via_credentials(username, password);
 };
 
