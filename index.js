@@ -258,9 +258,8 @@ SimpliSafe.prototype.removeAccessory = function() {
 */
 var API = require('./client/api.js');
 async function main() {
-var ss = new API('1CDD92');
-await ss.login_via_credentials(username, password)
+  var ss = new API('1CDD92');
+  await ss.login_via_credentials(username, password);
+};
 
-var t = await ss.getSensors('3EM9P');
-console.log(t);
-}
+main();
