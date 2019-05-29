@@ -1,4 +1,3 @@
-
 var websession = require('https');
 
 const URL_HOSTNAME = 'api.simplisafe.com';
@@ -6,7 +5,7 @@ const URL_BASE = 'https://api.simplisafe.com/v1';
 const DEFAULT_AUTH_USERNAME = '.2074.0.0.com.simplisafe.mobile';
 const DEFAULT_USER_AGENT = 'SimpliSafe/2105 CFNetwork/902.2 Darwin/17.7.0';
 
-//const SYSTEM_MAP = {2: SystemV2, 3: SystemV3};
+
 
 function BasicAuth(login, password){
   return "Basic " +  Buffer.from(login + ':' + password).toString('base64');
@@ -19,7 +18,6 @@ function uuid4() {
   });
 };
 
-var _websession = websession;
 
 var logFunc;
 
@@ -37,7 +35,37 @@ function logErr(msg, err) {
 function SSClient(SerialNumber, loggerFunc) {
   logFunc = loggerFunc;
   this.serial = SerialNumber;
-  this.sensors = [];
+  this.sensors = {};
+  this.connected=false;
+  this.SensorTypes = {
+    0:'SecuritySystem',
+    1:'keypad',
+    2:'keychain',
+    3:'panic_button',
+    4:'MotionSensor',
+    5:'ContactSensor',
+    6:'glass_break',
+    7:'CarbonMonoxideSensor',
+    8:'SmokeSensor',
+    9:'LeakSensor',
+    10:'TemperatureSensor',
+    13:'siren',
+    99:'unknown',
+    
+    'SecuritySystem': 0,
+    'keypad': 1,
+    'keychain': 2,
+    'panic_button': 3,
+    'MotionSensor': 4,
+    'ContactSensor': 5,
+    'glass_break': 6,
+    'CarbonMonoxideSensor': 7,
+    'SmokeSensor ': 8,
+    'LeakSensor': 9,
+    'TemperatureSensor': 10,
+    'siren': 13,
+    'unknown': 99
+  };
 }
 
 SSClient.prototype.login_via_token = function(email, refresh_token) {
@@ -49,13 +77,10 @@ SSClient.prototype.login_via_token = function(email, refresh_token) {
       'refresh_token': refresh_token
     })
 		.then(function() {
-			return thisObj.getUserId()
-		}, function(err) {
-			logErr('SS3Client: Failed to login', err)
-			throw err
+			return thisObj.getUserId();
 		})
 		.then(function() {
-			return thisObj.getSystemID()
+			return thisObj.getSystemID();
 		});
 }
 
@@ -69,14 +94,11 @@ SSClient.prototype.login_via_credentials = function(email, password) {
       "password": password
     })
 		.then(function() {
-			return self.getUserId()
-		}, function(err) {
-			   logErr('SS3Client: Failed to login', err)
-			throw err
+			return self.getUserId();
 		})
 		.then(function() {
-			return self.getSystemID()
-		})
+			return self.getSystemID();
+		});
 }
 
 SSClient.prototype._authenticate = function(payload_data) {
@@ -173,39 +195,28 @@ SSClient.prototype.setAlarmState = function(value) {
   return false;
 }
 
-SSClient.prototype.getSensors = async function(SerialNumber = 'all') {
-	var self = this
-  var cached;
-  if (SerialNumber == 'all') {cached=true;} else {cached=false;}
+SSClient.prototype.getSensor = async function(cached = true) {
+	var self = this;
   if (self.sysVersion==2) {
   	return await self.request({
       method:'GET',
       endpoint: 'subscriptions/' + self.subId + '/settings',
       params:{'settingsType': 'all', 'cached': cached.toString().toLowerCase()}
-    }).then (function(parsedBody){
+    }).then (async function(parsedBody){
       for (var sensor_data of parsedBody.settings.sensors) {
         if (!sensor_data['serial']) break;
-        if (sensor_data['serial'] === SerialNumber) {
-           return sensor_data;
-        } else {
            self.sensors[sensor_data['serial']] = sensor_data;
-        }
       }
-      return self.sensors
     });
   } else if (self.sysVersion==3) {
-    return await self.request({
+    return self.request({
       method:'GET',
       endpoint:'ss3/subscriptions/' + self.subId + '/sensors',
       params:{'forceUpdate': cached.toString().toLowerCase()}
     })
     .then (function(parsedBody){
       for (var sensor_data of parsedBody.sensors) {
-        if (sensor_data.serial === SerialNumber) {
-           return sensor_data;
-        } else {
           self.sensors[sensor_data['serial']] = sensor_data;
-        }
       }
       return self.sensors;
     });
@@ -213,7 +224,7 @@ SSClient.prototype.getSensors = async function(SerialNumber = 'all') {
   //return self.sensors;
 }
 
-SSClient.prototype.request = async function({method='', endpoint='', headers={}, params={}, data={}, json={}, ...kwargs}){
+SSClient.prototype.request = function({method='', endpoint='', headers={}, params={}, data={}, json={}, ...kwargs}){
   var self = this;
   /*if (_access_token_expire && Date.now() >= _access_token_expire && !_actively_refreshing){
           _actively_refreshing = true;
