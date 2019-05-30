@@ -32,7 +32,7 @@ module.exports = class API {
     this.sensors = {};
     this._actively_refreshing = false;
     this.SensorTypes = {
-      /*Commented out sensors not used but Homebridge and yes I know the siren could be a speaker*/
+      /*Commented out sensors not used by Homebridge and yes I know the siren could be a speaker*/
       0:'SecuritySystem',
       /*1:'keypad',
       2:'keychain',
