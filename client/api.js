@@ -5,8 +5,6 @@ const URL_BASE = 'https://api.simplisafe.com/v1';
 const DEFAULT_AUTH_USERNAME = '.2074.0.0.com.simplisafe.mobile';
 const DEFAULT_USER_AGENT = 'SimpliSafe/2105 CFNetwork/902.2 Darwin/17.7.0';
 
-
-
 function BasicAuth(login, password){
   return "Basic " +  Buffer.from(login + ':' + password).toString('base64');
 }
@@ -18,259 +16,256 @@ function uuid4() {
   });
 };
 
+var _access_token = ''
+var _access_token_expire;
+var _access_token_type;
+var _email;
 
-var logFunc;
+module.exports = class API {
+  //Class SimpliSafe API
+  constructor(SerialNumber) {
+    //Initialize.
+    //this.refresh_token_dirty = false;
+    this.serial = SerialNumber;
+    this.user_id;
+    this._refresh_token = '';
+    this.sensors = {};
+    this._actively_refreshing = false;
+    this.SensorTypes = {
+      0:'SecuritySystem',
+      1:'keypad',
+      2:'keychain',
+      3:'panic_button',
+      4:'MotionSensor',
+      5:'ContactSensor',
+      6:'glass_break',
+      7:'CarbonMonoxideSensor',
+      8:'SmokeSensor',
+      9:'LeakSensor',
+      10:'TemperatureSensor',
+      13:'siren',
+      99:'unknown',
 
-function log(msg) {
-	if (logFunc) {
-		logFunc(msg);
-	}
-}
-
-function logErr(msg, err) {
-	var fullMsg = msg + (err ? (' ' + err.message) : '')
-	log(fullMsg)
-}
-
-function SSClient(SerialNumber, loggerFunc) {
-  logFunc = loggerFunc;
-  this.serial = SerialNumber;
-  this.sensors = {};
-  this.connected=false;
-  this.SensorTypes = {
-    0:'SecuritySystem',
-    1:'keypad',
-    2:'keychain',
-    3:'panic_button',
-    4:'MotionSensor',
-    5:'ContactSensor',
-    6:'glass_break',
-    7:'CarbonMonoxideSensor',
-    8:'SmokeSensor',
-    9:'LeakSensor',
-    10:'TemperatureSensor',
-    13:'siren',
-    99:'unknown',
-    
-    'SecuritySystem': 0,
-    'keypad': 1,
-    'keychain': 2,
-    'panic_button': 3,
-    'MotionSensor': 4,
-    'ContactSensor': 5,
-    'glass_break': 6,
-    'CarbonMonoxideSensor': 7,
-    'SmokeSensor ': 8,
-    'LeakSensor': 9,
-    'TemperatureSensor': 10,
-    'siren': 13,
-    'unknown': 99
+      'SecuritySystem': 0,
+      'keypad': 1,
+      'keychain': 2,
+      'panic_button': 3,
+      'MotionSensor': 4,
+      'ContactSensor': 5,
+      'glass_break': 6,
+      'CarbonMonoxideSensor': 7,
+      'SmokeSensor ': 8,
+      'LeakSensor': 9,
+      'TemperatureSensor': 10,
+      'siren': 13,
+      'unknown': 99
+    };
   };
-}
 
-SSClient.prototype.login_via_token = function(email, refresh_token) {
-	var thisObj = this
-	return this._authenticate(
-    {
-      'grant_type': 'refresh_token',
-      'username': email,
-      'refresh_token': refresh_token
-    })
-		.then(function() {
-			return thisObj.getUserId();
-		})
-		.then(function() {
-			return thisObj.getSystemID();
-		});
-}
+  async login_via_credentials(email, password){
+  //Create an API object from a email address and password.
+    _email = email;
+    await this._authenticate({
+           'grant_type': 'password',
+           'username': email,
+           'password': password,
+    });
+    await this._get_user_ID();
+    await this.get_system();
+    return;
+  };//end of function login_via_credentials
 
-SSClient.prototype.login_via_credentials = function(email, password) {
-	var self = this
-	return self._authenticate(
-    {
-      "grant_type": "password",
-      "device_id": "WebApp",
-      "username": email,
-      "password": password
-    })
-		.then(function() {
-			return self.getUserId();
-		})
-		.then(function() {
-			return self.getSystemID();
-		});
-}
+  async login_via_token(refresh_token){
+    //Create an API object from a refresh token.
+    await this._refresh_access_token(refresh_token);
+    await this._get_user_ID();
+    await this.get_system();
+    return;
+  };//end of function login_via_token
 
-SSClient.prototype._authenticate = function(payload_data) {
-	var self = this;
-	return self.request({
+  async _authenticate(payload_data){
+    //Request token data...
+    var token_resp = await this.request({
       method:'POST',
       endpoint:'api/token',
       data: payload_data,
       auth: BasicAuth(uuid4() + DEFAULT_AUTH_USERNAME, '')
-	  })
-    .then(function(parsedBody) {
-		   self.access_token = parsedBody.access_token;
-		   self.expires_in = parsedBody.expires_in;
-		   self.token_type = parsedBody.token_type;
-       self.refresh_token = parsedBody.refresh_token;
-       self.token_expire = new Date(Date.now() + ((parsedBody.expires_in-60) * 1000));
-	    }, function(err) {
-		      logErr('SSClient: Failed to initToken:', err);
-		      throw err;
-	    });
-}
-
-SSClient.prototype.getUserId = function() {
-	var self = this;
-  return self.request({
-    method:'GET',
-    endpoint: 'api/authCheck'
-  })
-  .then(function(parsedBody) {
-    self.user_id = parsedBody.userId;
-  }, function(err) {
-      logErr('SSClient: Failed to get userID:', err);
-      throw err;
-  });
-}
-
-SSClient.prototype.getSystemID = function() {
-	var self = this;
-	return self.request({
-    method: 'GET',
-    endpoint: 'users/' + self.user_id + '/subscriptions',
-    params: {'activeOnly': 'true'}
-  })
-	.then(function(parsedBody) {
-    for (let subscription of parsedBody.subscriptions){
-      if (subscription.location.system.serial === self.serial) {
-          self.subId = subscription.sid;
-          self.sysVersion = subscription.location.system.version;
-          self.getAlarmState = subscription.location.system.alarmState;
-          return;
-        }
-    }
-	})
-}
-
-//SSClient.prototype.getAlarmState = function() {return this._state;}
-
-
-/**
- * Set the alarm state
- *
- * @param state One of 'off', 'home', 'away'
- * @returns {*|PromiseLike<T>|Promise<T>}
- */
-SSClient.prototype.setAlarmState = function(value) {
-	var self = this;
-  if (self.getAlarmState == value) return true;
-  if (self.sysVersion==2) {
-    self.request({
-      method:'post',
-      endpoint:'subscriptions/' + self.subId + '/state',
-      params:{'state': value}
-    })
-    .then(function(parsedBody){
-      if (!parsedBody) return false;
-      if (state_resp.success) {
-        self.getAlarmState = SystemStates[state_resp.requestedState];
-        return true;
-      }
-    })
-  } else if (self.sysVersion==3) {
-    self.request({
-      method:'post',
-      endpoint:'ss3/subscriptions/' + self.subId + '/state/' + value
-    })
-    .then(function(parsedBody){
-      if (!parsedBody) return false;
-      if (state_resp.success) {
-        self.getAlarmState = state_resp['state'];
-        return true;
-      };
-    })
-  }
-  return false;
-}
-
-SSClient.prototype.getSensor = async function(cached = true) {
-	var self = this;
-  if (self.sysVersion==2) {
-  	return await self.request({
-      method:'GET',
-      endpoint: 'subscriptions/' + self.subId + '/settings',
-      params:{'settingsType': 'all', 'cached': cached.toString().toLowerCase()}
-    }).then (async function(parsedBody){
-      for (var sensor_data of parsedBody.settings.sensors) {
-        if (!sensor_data['serial']) break;
-           self.sensors[sensor_data['serial']] = sensor_data;
-      }
     });
-  } else if (self.sysVersion==3) {
-    return self.request({
-      method:'GET',
-      endpoint:'ss3/subscriptions/' + self.subId + '/sensors',
-      params:{'forceUpdate': cached.toString().toLowerCase()}
+
+    _access_token = token_resp.access_token;
+    _access_token_expire = new Date(Date.now() + ((token_resp.expires_in-60) * 1000));
+    _access_token_type = token_resp.token_type;
+    this._refresh_token = token_resp.refresh_token;
+  };//End of function _authenticate
+
+  async _get_user_ID (){
+    var auth_check_resp = await this.request({method:'GET',endpoint: 'api/authCheck'})
+    this.user_id = auth_check_resp['userId'];
+  };//End of function _getUserId
+
+  async _refresh_access_token(refresh_token){
+    //Regenerate an access token.
+    await this._authenticate({
+        'grant_type': 'refresh_token',
+        'username': _email,
+        'refresh_token': refresh_token,
     })
-    .then (function(parsedBody){
+    this._actively_refreshing = false;
+  };//End of function _refresh_access_token
+
+  async get_system(){
+    //Get systems associated to this account.
+    var self = this;
+    var subscription_resp = await this.get_subscription_data();
+    for (var system_data of subscription_resp.subscriptions){
+      if (system_data.location.system.serial === self.serial) {
+          self.subId = system_data.sid;
+          self.sysVersion = system_data.location.system.version;
+          return system_data.location.system;
+      }
+    };
+  };//End of function get_system
+
+  async get_subscription_data(){
+    var self = this;
+    //Get the latest location-level data.
+    return await this.request({method: 'GET', endpoint: 'users/' + self.user_id + '/subscriptions', params: {'activeOnly': 'true'}});
+  };//End of function get_subscription_data
+
+  async get_Sensors(cached = true) {
+  	var self = this;
+    if (self.sysVersion==3) {
+      var parsedBody = await self.request({
+        method:'GET',
+        endpoint:'ss3/subscriptions/' + self.subId + '/sensors',
+        params:{'forceUpdate': cached.toString().toLowerCase()}
+      })
       for (var sensor_data of parsedBody.sensors) {
           self.sensors[sensor_data['serial']] = sensor_data;
+          if (self.sensors[sensor_data['serial']].type == self.SensorTypes['ContactSensor']) {
+            self.sensors[sensor_data['serial']] = {...sensor_data, 'entryStatus' : sensor_data.status.triggered ? 'open' : 'closed'};
+          } else {
+            self.sensors[sensor_data['serial']] = sensor_data;
+          }
       }
-      return self.sensors;
-    });
-  }
-  //return self.sensors;
-}
-
-SSClient.prototype.request = function({method='', endpoint='', headers={}, params={}, data={}, json={}, ...kwargs}){
-  var self = this;
-  /*if (_access_token_expire && Date.now() >= _access_token_expire && !_actively_refreshing){
-          _actively_refreshing = true;
-          await _refresh_access_token(this._refresh_token)
-  }*/
-  var url = new URL(URL_BASE + '/' + endpoint);
-  if (params){
-    Object.keys(params).forEach(item=> {
-        url.searchParams.append(item.toString(), params[item]);
-    });
-  };
-
-  if (!kwargs.auth) headers['Authorization'] = self.token_type + ' ' + self.access_token; else headers['Authorization'] = kwargs.auth;
-
-  headers={
-          ...headers,
-          'Content-Type': 'application/json; charset=utf-8',
-          'User-Agent': DEFAULT_USER_AGENT,
-  };
-
-  var options = {
-    method: method,
-    headers: headers
-  }
-
-  return new Promise((resolve, reject) => {
-    const req = websession.request(url.href, options, (res) => {
-      res.setEncoding('utf8');
-      var body='';
-      res.on('data', (chunk) => { body += chunk;}) ;
-      res.on('end', () => {
-        if (typeof res.headers['content-type']!=='undefined' && res.headers['content-type'].indexOf('application/json') > -1) {
-          resolve(JSON.parse(body));
-        } else {
-          resolve(body);
+        return self.sensors;
+    } else {
+    	var parsedBody = await self.request({
+        method:'GET',
+        endpoint: 'subscriptions/' + self.subId + '/settings',
+        params:{'settingsType': 'all', 'cached': cached.toString().toLowerCase()}
+      })
+        for (var sensor_data of parsedBody.settings.sensors) {
+          if (!sensor_data['serial']) break;
+             self.sensors[sensor_data['serial']] = sensor_data;
         }
+    }
+  };//End of function get_Sensors
+
+  async get_Alarm_State() {
+    var self = this;
+    return await self.get_system().AlarmState;
+  };//End of function get_Alarm_State
+
+  async set_Alarm_State(value) {
+  	var self = this;
+    var parsedBody;
+    if (self.sysVersion==3) {
+      parsedBody = await self.request({
+       method:'post',
+       endpoint:'ss3/subscriptions/' + self.subId + '/state/' + value
+      })
+      if (parsedBody.success) return parsedBody;
+   } else {
+        parsedBody = await self.request({
+        method:'post',
+        endpoint:'subscriptions/' + self.subId + '/state',
+        params:{'state': value}
+      })
+      if (parsedBody.success) return await parsedBody;
+    };
+  };//End of function set_Alarm_State
+
+  async request({method='', endpoint='', headers={}, params={}, data={}, json={}, ...kwargs}){
+
+    if (_access_token_expire && Date.now() >= _access_token_expire && !this._actively_refreshing){
+            this._actively_refreshing = true;
+            await _refresh_access_token(this._refresh_token)
+    }
+    var url = new URL(URL_BASE + '/' + endpoint);
+    if (params){
+      Object.keys(params).forEach(item=> {
+          url.searchParams.append(item.toString(), params[item]);
       });
+    };
+
+    if (!kwargs.auth) headers['Authorization'] = _access_token_type + ' ' + _access_token; else headers['Authorization'] = kwargs.auth;
+
+    headers={
+            ...headers,
+            'Content-Type': 'application/json; charset=utf-8',
+            'User-Agent': DEFAULT_USER_AGENT,
+    };
+
+    var options = {
+      method: method,
+      headers: headers
+    }
+
+    return new Promise((resolve, reject) => {
+      const req = websession.request(url.href, options, (res) => {
+        res.setEncoding('utf8');
+        var body='';
+        res.on('data', (chunk) => { body += chunk;}) ;
+        res.on('end', () => {
+          if (typeof res.headers['content-type']!=='undefined' && res.headers['content-type'].indexOf('application/json') > -1) {
+            resolve(JSON.parse(body));
+          } else {
+            resolve(body);
+          }
+        });
+      });
+
+      req.on('error', (e) => {
+        console.error(`problem with request: ${e.message}`);
+      });
+
+      if (data) req.write(JSON.stringify(data));
+      req.end();
     });
+  };//End of function Request
 
-    req.on('error', (e) => {
-      console.error(`problem with request: ${e.message}`);
-    });
+};//end of Class SSAPI
 
-    if (data) req.write(JSON.stringify(data));
-    req.end();
-  });
-};//End of function Request
 
-module.exports = SSClient;
+//Might not be needed
+/*  async get_systems(){
+    //Get systems associated to this account.
+    var subscription_resp = await this.get_subscription_data();
+    var systems = [];
+    for (var system_data of subscription_resp.subscriptions){
+      var system_class = SYSTEM_MAP[system_data['location']['system']['version']];
+      var system = new system_class(this, system_data['location']);
+      await system.update(false);
+
+      systems.push(system);
+    };
+    return systems;
+  };//End of function get_systems
+*/
+
+//Useless until private comes for classes;
+/*  get refresh_token(){
+    //Return the current refresh_token.
+    if (this.refresh_token_dirty)
+        this.refresh_token_dirty = false;
+      return this._refresh_token
+  }
+
+  set refresh_token(value){
+    //Set the refresh token if it has changed.
+    if (value == this._refresh_token) return;
+    this._refresh_token = value
+    this.refresh_token_dirty = True
+  }
+*/
