@@ -32,33 +32,34 @@ module.exports = class API {
     this.sensors = {};
     this._actively_refreshing = false;
     this.SensorTypes = {
+      /*Commented out sensors not used but Homebridge and yes I know the siren could be a speaker*/
       0:'SecuritySystem',
-      1:'keypad',
+      /*1:'keypad',
       2:'keychain',
-      3:'panic_button',
+      3:'panic_button',*/
       4:'MotionSensor',
       5:'ContactSensor',
-      6:'glass_break',
+      /*6:'glass_break',*/
       7:'CarbonMonoxideSensor',
       8:'SmokeSensor',
       9:'LeakSensor',
       10:'TemperatureSensor',
-      13:'siren',
-      99:'unknown',
+      /*13:'siren',
+      99:'unknown',*/
 
       'SecuritySystem': 0,
-      'keypad': 1,
+      /*'keypad': 1,
       'keychain': 2,
-      'panic_button': 3,
+      'panic_button': 3,*/
       'MotionSensor': 4,
       'ContactSensor': 5,
-      'glass_break': 6,
+      /*'glass_break': 6,*/
       'CarbonMonoxideSensor': 7,
-      'SmokeSensor ': 8,
+      'SmokeSensor': 8,
       'LeakSensor': 9,
       'TemperatureSensor': 10,
-      'siren': 13,
-      'unknown': 99
+      /*'siren': 13,
+      'unknown': 99*/
     };
   };
 
@@ -157,32 +158,36 @@ module.exports = class API {
       })
         for (var sensor_data of parsedBody.settings.sensors) {
           if (!sensor_data['serial']) break;
-             self.sensors[sensor_data['serial']] = sensor_data;
+            if (self.sensors[sensor_data['serial']].type == self.SensorTypes['ContactSensor']) {
+              //self.sensors[sensor_data['serial']] = {...sensor_data, 'status' : '{ triggered :' sensor_data.entryStatus ? 'true' : 'false' + ' }' };
+              console.log(sensor_data)
+              self.sensors[sensor_data['serial']] = sensor_data;
+            } else {
+              self.sensors[sensor_data['serial']] = sensor_data;
+            }
         }
     }
   };//End of function get_Sensors
 
   async get_Alarm_State() {
     var self = this;
-    return await self.get_system().AlarmState;
+    var state = await self.get_system();
+    return state;
   };//End of function get_Alarm_State
 
   async set_Alarm_State(value) {
   	var self = this;
-    var parsedBody;
     if (self.sysVersion==3) {
-      parsedBody = await self.request({
+      return await self.request({
        method:'post',
        endpoint:'ss3/subscriptions/' + self.subId + '/state/' + value
       })
-      if (parsedBody.success) return parsedBody;
    } else {
-        parsedBody = await self.request({
+        return await self.request({
         method:'post',
         endpoint:'subscriptions/' + self.subId + '/state',
         params:{'state': value}
       })
-      if (parsedBody.success) return await parsedBody;
     };
   };//End of function set_Alarm_State
 
@@ -235,37 +240,5 @@ module.exports = class API {
     });
   };//End of function Request
 
-};//end of Class SSAPI
+};//end of Class API
 
-
-//Might not be needed
-/*  async get_systems(){
-    //Get systems associated to this account.
-    var subscription_resp = await this.get_subscription_data();
-    var systems = [];
-    for (var system_data of subscription_resp.subscriptions){
-      var system_class = SYSTEM_MAP[system_data['location']['system']['version']];
-      var system = new system_class(this, system_data['location']);
-      await system.update(false);
-
-      systems.push(system);
-    };
-    return systems;
-  };//End of function get_systems
-*/
-
-//Useless until private comes for classes;
-/*  get refresh_token(){
-    //Return the current refresh_token.
-    if (this.refresh_token_dirty)
-        this.refresh_token_dirty = false;
-      return this._refresh_token
-  }
-
-  set refresh_token(value){
-    //Set the refresh token if it has changed.
-    if (value == this._refresh_token) return;
-    this._refresh_token = value
-    this.refresh_token_dirty = True
-  }
-*/
