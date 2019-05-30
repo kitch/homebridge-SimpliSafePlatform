@@ -22,31 +22,30 @@ function SimpliSafe(log, config, api) {
   ss = new API(config.SerialNumber);
 
   if (api) {
-      this.api = api;
-      this.api.on('didFinishLaunching', function() {
-        //Time to loging and update Statusses
-        ss.login_via_credentials(config.username, config.password)
-        .then(function(){
-          return platform.updateSensors();
-          //platform.api.unregisterPlatformAccessories("homebridge-platform-simplisafe", "homebridge-platform-simplisafe", platform.accessories);
-          //platform.accessories = [];
-          //platform.log(platform.accessories);
-          return;
-        });
-      }.bind(this));
+    this.api = api;
+    this.api.on('didFinishLaunching', function() {
+      ss.login_via_credentials(config.username, config.password)
+      .then(function(){
+        return platform.updateSensors(true);
+      });
+      platform.log("Is up and monitoring.")
+      setInterval(
+        function(){
+            platform.updateSensors();
+        },
+        platform.config.refresh_timer
+      );
+    }.bind(this));
   }
 }
 
-SimpliSafe.prototype.updateSensors = function(){
+SimpliSafe.prototype.updateSensors = function(cached = false){
   var platform = this;
 
-  return ss.getSensor(false)
-  .then(function () {
-    var system = ss.sensors
-    system[platform.config.SerialNumber] = {'type': ss.SensorTypes.SecuritySystem, 'serial': platform.config.SerialNumber, 'state': ss.getAlarmState, 'name': 'SimpliSafe Alarm V' + ss.sysVersion}
-
-    if (ss.sysVersion===2){
-      platform.log('Updating statuses for verison 2 System.')
+  return ss.get_Sensors(cached)
+    .then(function () {
+      var system = ss.sensors
+      system[platform.config.SerialNumber] = {'type': ss.SensorTypes.SecuritySystem, 'serial': platform.config.SerialNumber, 'state': ss.AlarmState, 'name': 'SimpliSafe Alarm System'}
       Object.keys(system).forEach(sensor=> {
         var SystemAccessory;
         if (![ss.SensorTypes.SecuritySystem, ss.SensorTypes.ContactSensor, ss.SensorTypes.TemperatureSensor].includes(ss.sensors[sensor].type)) return;
@@ -58,54 +57,101 @@ SimpliSafe.prototype.updateSensors = function(){
           platform.log('Found new sensor', sensor, ss.sensors[sensor].name);
           SystemAccessory = new Accessory(ss.SensorTypes[ss.sensors[sensor].type] + ' ' + sensor, UUIDGen.generate(ss.SensorTypes[ss.sensors[sensor].type] + ' ' + sensor));
           SystemAccessory.context.SerialNumber = sensor;
+
+          SystemAccessory.getService(Service.AccessoryInformation)
+            .setCharacteristic(Characteristic.SerialNumber, sensor)
+            .setCharacteristic(Characteristic.Name, ss.sensors[sensor].name)
+            .setCharacteristic(Characteristic.Manufacturer, 'SimpliSafe')
+            .setCharacteristic(Characteristic.HardwareRevision, ss.sysVersion);
           platform.accessories.push(SystemAccessory);
           platform.api.registerPlatformAccessories("homebridge-platform-simplisafe", "homebridge-platform-simplisafe", [SystemAccessory]);
         }
         switch (ss.sensors[sensor].type) {
           case ss.SensorTypes.SecuritySystem:
-            if (!SystemAccessory.getService(Service.SecuritySystemCurrentState)) SystemAccessory.addService(Service.SecuritySystemCurrentState);
-            //if (!SystemAccessory.getService(Service.SecuritySystemTargetState)) SystemAccessory.addService(Service.SecuritySystemTargetState, ss.sensors[sensor].name);
-              /*switch (ss.sensors[sensor].state.toLowerCase()) {
-          			case "home":
-          			case 'home_count':
-                  SystemAccessory.getService(Service.SecuritySystemCurrentState).getCharacteristic(Characteristic.SecuritySystemCurrentState).updateValue(Characteristic.SecuritySystemCurrentState.STAY_ARM);
-          				break;
-          			case "away":
-          			case 'away_count':
-          			case 'alarm_count':
-                  SystemAccessory.getService(Service.SecuritySystemCurrentState).getCharacteristic(Characteristic.SecuritySystemCurrentState).updateValue(Characteristic.SecuritySystemCurrentState.AWAY_ARM);
-          				break;
-          			case "off":
-                  SystemAccessory.getService(Service.SecuritySystemCurrentState).getCharacteristic(Characteristic.SecuritySystemCurrentState).updateValue(Characteristic.SecuritySystemCurrentState.DISARMED);
-                  break;
-              }*/
+            if (!SystemAccessory.getService(Service.SecuritySystem)) {
+                SystemAccessory.addService(Service.SecuritySystem, ss.sensors[sensor].name);
+                SystemAccessory.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Model, 'SimpliSafe Alarm System');
+                SystemAccessory.getService(Service.SecuritySystem)
+                  .getCharacteristic(Characteristic.SecuritySystemCurrentState)
+                  .on('get', (callback)=>platform.getAlarmState(callback));
+                SystemAccessory.getService(Service.SecuritySystem)
+                  .getCharacteristic(Characteristic.SecuritySystemTargetState)
+                  .on('get', (callback)=> platform.getAlarmState(callback))
+                  .on('set', (state, callback)=> {
+                     platform.setAlarmState(state, callback);
+                     SystemAccessory.getService(Service.SecuritySystem).setCharacteristic(Characteristic.SecuritySystemCurrentState, state);
+                  });
+            }
             break;
           case ss.SensorTypes.ContactSensor:
-            if (!SystemAccessory.getService(Service.ContactSensor)) SystemAccessory.addService(Service.ContactSensor, ss.sensors[sensor].name);
+            if (!SystemAccessory.getService(Service.ContactSensor)) {
+              SystemAccessory.addService(Service.ContactSensor, ss.sensors[sensor].name);
+              SystemAccessory.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Model, ss.SensorTypes[ss.sensors[sensor].type].replace('Sensor', ' Sensor'));
+            };
             if (ss.sensors[sensor].entryStatus == 'closed') {
               SystemAccessory.getService(Service.ContactSensor).getCharacteristic(Characteristic.ContactSensorState).updateValue(Characteristic.ContactSensorState.CONTACT_DETECTED);
             } else {
               SystemAccessory.getService(Service.ContactSensor).getCharacteristic(Characteristic.ContactSensorState).updateValue(Characteristic.ContactSensorState.CONTACT_NOT_DETECTED);
-            }
+            };
             break;
           case ss.SensorTypes.TemperatureSensor:
-            if (!SystemAccessory.getService(Service.TemperatureSensor)) SystemAccessory.addService(Service.TemperatureSensor, ss.sensors[sensor].name);
+            if (!SystemAccessory.getService(Service.TemperatureSensor)) {
+              SystemAccessory.addService(Service.TemperatureSensor, ss.sensors[sensor].name);
+              SystemAccessory.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Model, ss.SensorTypes[ss.sensors[sensor].type].replace('Sensor', ' Sensor'));
+            };
             SystemAccessory.getService(Service.TemperatureSensor).getCharacteristic(Characteristic.CurrentTemperature).updateValue((ss.sensors[sensor].temp-32) * 5/9);
             break;
         };
       });
-      //if (!FoundSensor && FoundAccessory) platform.log('Found one to remove');//remove Accessory
-    } else if (ss.sysVersion===3){
-    }
-    platform.log('Finish updating Sensors Status');
-  });
-
+    });
 }
 
+SimpliSafe.prototype.getAlarmState = function(callback){
+    var platform = this;
+  		ss.getAlarmState()
+      .then(function(state) {
+          platform.log(state)
+          switch (state.toLowerCase()) {
+            case 'home':
+            case 'home_count':
+              callback(null, Characteristic.SecuritySystemTargetState.STAY_ARM);
+              break;
+            case 'away':
+            case 'away_count':
+            case 'alarm_count':
+              callback(null, Characteristic.SecuritySystemTargetState.AWAY_ARM);
+              break;
+            case 'off':
+              callback(null, Characteristic.SecuritySystemTargetState.DISARM);
+              break;
+          };
+  		}, function() {
+  			callback(new Error('Failed to get alarm state'))
+  });
+};
 
-// Function invoked when homebridge tries to restore cached accessory.
-// Developer can configure accessory at here (like setup event handler).
-// Update current value.
+SimpliSafe.prototype.setAlarmState = function(state, callback) {
+// Set state in simplisafe 'off' or 'home' or 'away'
+	var platform = this;
+  var ssState;
+  switch (state) {
+		case Characteristic.SecuritySystemTargetState.STAY_ARM:
+		case Characteristic.SecuritySystemTargetState.NIGHT_ARM:
+			ssState = "home";
+			break;
+		case Characteristic.SecuritySystemTargetState.AWAY_ARM :
+			ssState = "away";
+			break;
+		case Characteristic.SecuritySystemTargetState.DISARM:
+			ssState = "off";
+			break;
+  }
+  ss.setAlarmState(ssState)
+  .then(function() {
+			callback(null, state);
+		});
+}
+
 SimpliSafe.prototype.configureAccessory = async function(accessory) {
   var platform = this;
 
