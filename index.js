@@ -223,18 +223,8 @@ SimpliSafe.prototype.configureAccessory = async function(accessory) {
   platform.accessories.push(accessory);
 }
 
-SimpliSafe.prototype.updateAccessoriesReachability = function() {
-  this.log("Update Reachability");
-  for (var index in this.accessories) {
-    var accessory = this.accessories[index];
-    accessory.updateReachability(false);
-  }
-}
-
 // Sample function to show how developer can remove accessory dynamically from outside event
-SimpliSafe.prototype.removeAccessory = function() {
-  this.log("Remove Accessory");
-  this.api.unregisterPlatformAccessories("homebridge-platform-simplisafe", "homebridge-platform-simplisafe", this.accessories);
+// Need to look up Accessoy Removal process....
+//  this.api.unregisterPlatformAccessories("homebridge-platform-simplisafe", "homebridge-platform-simplisafe", this.accessories);
 
-  this.accessories = [];
-}
+//  this.accessories = [];
