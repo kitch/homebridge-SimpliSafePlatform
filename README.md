@@ -27,8 +27,8 @@ To use this, you must have a working Homebridge server running in your network.
 	},
 	"platforms": [
     		{
-      			"platform" : "homebridge-platform-simplisafe",
-      			"name" : "SimpliSafe Client",
+      		"platform" : "homebridge-platform-simplisafe",
+      		"name" : "SimpliSafe Client",
 			"SerialNumber": "system serial",
 			"username" : "email",
 			"password" : "password",
