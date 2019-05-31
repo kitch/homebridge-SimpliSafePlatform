@@ -2,8 +2,6 @@
 
 This project is a [Homebridge] platform pluging that allows you to monitor and control your SimpliSafe Alarm System with the iOS  Home app (HomeKit) as well as through Siri. This project uses the its own API from several different examples out there... So, with that being said it is an unoffical version of SimpliSafe API and might change in the future without warning. That will cause this to fail unless monitor and the code updated. 
 
-# Major Credit goes to chowielin, nfarina and greencoder. 
-
 To use this, you must have a working Homebridge server running in your network. 
 
 ## Screenshots
@@ -43,3 +41,5 @@ To use this, you must have a working Homebridge server running in your network.
 - The refresh timer is the amount of time in seconds for the system to updates its current status. It will scan for the system and its sensors. Keep the setting around 30 seconds for systems cellular only versions and don't go much lower than 10 seconds for the wifi ones.
 
 For more than one system just, add in another platform and change it to match the other system.
+
+# Major Credit goes to chowielin, nfarina and greencoder. 
