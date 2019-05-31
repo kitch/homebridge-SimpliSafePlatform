@@ -2,9 +2,9 @@
   "name": "homebridge-platform-simplisafe",
   "description": "HomeKit support for SimpliSafe",
   "version": "0.0.9",
-  "author": {
-    "name": "Ben Wells"
-  },
+  "main": "index.js",
+  "author": "Ben Wells",
+  "license": "Apache",
   "repository": {
     "type": "git",
     "url": "git://github.com/graanco/homebridge-SimpliSafePlatform.git"
@@ -12,7 +12,11 @@
   "bugs": {
     "url": "https://github.com/graanco/homebridge-SimpliSafePlatform/issues"
   },
+  "keywords": [
+    "homebridge-plugin"
+  ],
   "engines": {
-    "node": ">=4.3.2"
+    "node": ">=4.3.2",
+    "homebridge": ">=0.2.5"
   }
 }
