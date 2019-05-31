@@ -8,7 +8,7 @@ module.exports = function(homebridge) {
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
   UUIDGen = homebridge.hap.uuid;
-  homebridge.registerPlatform("homebridge-platform-simplisafe", "homebridge-platform-simplisafe", SimpliSafe, true);
+  homebridge.registerPlatform("homebridge-SimpliSafePlatform", "homebridge-SimpliSafePlatform", SimpliSafe, true);
 }
 
 var ss; //SimpliSafe Client
