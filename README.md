@@ -32,13 +32,13 @@ To use this, you must have a working Homebridge server running in your network.
 			"SerialNumber": "system serial",
 			"username" : "email",
 			"password" : "password",
-			"refresh_timer": "30" 
+			"refresh_timer": "60" 
 		}
 		]
 	}
 
 
-- The refresh timer is the amount of time in seconds for the system to updates its current status. It will scan for the system and its sensors. Keep the setting around 30 seconds for systems cellular only versions and don't go much lower than 10 seconds for the wifi ones.
+- The refresh timer is the amount of time in seconds for the system to updates its current status. It will scan for the system and its sensors. Keep the setting around 60 seconds for systems cellular only versions and don't go much lower than 10 seconds for the wifi ones.
 
 For more than one system just, add in another platform and change it to match the other system.
 
