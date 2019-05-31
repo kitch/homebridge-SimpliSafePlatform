@@ -1,4 +1,4 @@
-# homebridge-simplisafe-security-system
+# homebridge-SimpliSafePlatform
 
 This project is a [Homebridge] platform pluging that allows you to monitor and control your SimpliSafe alarm system with the iOS 10 Home app as well as through Siri. This project uses the its own API from several different examples out there... Major Credit goes to chowielin, nfarina and greencoder. 
 
