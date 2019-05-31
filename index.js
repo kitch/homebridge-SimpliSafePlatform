@@ -46,7 +46,7 @@ SimpliSafe.prototype.updateSensors = function(cached = false){
   return ss.get_Sensors(cached)
     .then(function () {
       var system = ss.sensors;
-      system[platform.config.SerialNumber] = {'type': ss.SensorTypes.SecuritySystem, 'serial': platform.config.SerialNumber, 'state': ss.AlarmState, 'name': 'SimpliSafe Alarm System'}
+      system[platform.config.SerialNumber] = {'type': ss.SensorTypes.SecuritySystem, 'serial': platform.config.SerialNumber, 'name': 'SimpliSafe Alarm System'}
       Object.keys(system).forEach(sensor=> {
         if (ss.sysVersion == 3) {
           if (![ss.SensorTypes.CarbonMonoxideSensor, ss.SensorTypes.ContactSensor, ss.SensorTypes.LeakSensor, ss.SensorTypes.MotionSensor, ss.SensorTypes.SecuritySystem, ss.SensorTypes.SmokeSensor, ss.SensorTypes.TemperatureSensor].includes(ss.sensors[sensor].type)) return;
