@@ -38,3 +38,4 @@ To use this, you must have a working Homebridge server running in your network.
 }
 The refresh timer is for updating the system for its current status on the system and its sensors. Keep the setting at 30 for system versions less than version 3 hardware. refresh_timer is in seconds... 
 
+For more than one system just duplicate the platform and change it to match the other serial number.
