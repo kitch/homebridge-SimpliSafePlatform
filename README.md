@@ -29,7 +29,7 @@ To use this, you must have a working Homebridge server running in your network.
     {
       "platform" : "homebridge-platform-simplisafe",
       "name" : "SimpliSafe Client",
-			"SerialNumber": "000162B9",
+			"SerialNumber": "system serial",
 			"username" : "email",
 			"password" : "password",
 			"refresh_timer": "30" 
