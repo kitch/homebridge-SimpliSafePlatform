@@ -26,15 +26,15 @@ To use this, you must have a working Homebridge server running in your network.
 		"pin": "032-45-155"
 	},
 	"platforms": [
-    {
-      "platform" : "homebridge-platform-simplisafe",
-      "name" : "SimpliSafe Client",
+    		{
+      			"platform" : "homebridge-platform-simplisafe",
+      			"name" : "SimpliSafe Client",
 			"SerialNumber": "system serial",
 			"username" : "email",
 			"password" : "password",
 			"refresh_timer": "30" 
-    }
+    		}
 	]
 }
-refresh_timer is in seconds... 
+The refresh timer is for updating the system for its current status on the system and its sensors. Keep the setting at 30 for system versions less than version 3 hardware. refresh_timer is in seconds... 
 
