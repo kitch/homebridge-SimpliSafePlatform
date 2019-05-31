@@ -5,7 +5,7 @@ This project is a [Homebridge] platform pluging that allows you to monitor and c
 To use this, you must have a working Homebridge server running in your network. 
 
 ## Screenshots
-![View from the home app](/screenshots/IMG_0064.jpg?raw=true "View from the Home app.")
+![View from the home app](/screenshots/0C99F13D-FD5D-406A-AE59-4EBD4BDE7FA8.png?raw=true "View from the Home app.")
 ![Controlling alarm system](/screenshots/IMG_0065.jpg?raw=true "Controlling the alarm system.")
 
 ## Notes
