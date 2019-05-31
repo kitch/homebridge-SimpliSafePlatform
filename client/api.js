@@ -16,7 +16,7 @@ function uuid4() {
   });
 };
 
-var _access_token = ''
+var _access_token;
 var _access_token_expire;
 var _access_token_type;
 var _email;
