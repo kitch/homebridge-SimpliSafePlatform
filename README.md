@@ -17,25 +17,25 @@ To use this, you must have a working Homebridge server running in your network.
 
 
 ## Configuration
-    {
-	"bridge":
 	{
-		"name": "Homebridge",
-		"username": "CD:22:3D:E3:CE:31",
-		"port": 51826,
-		"pin": "032-45-155"
-	},
-	"platforms": [
-    		{
-      		"platform" : "homebridge-platform-simplisafe",
-      		"name" : "SimpliSafe Client",
+		"bridge":
+		{
+			"name": "Homebridge",
+			"username": "CD:22:3D:E3:CE:31",
+			"port": 51826,
+			"pin": "032-45-155"
+		},
+		"platforms": [
+		{
+			"platform" : "homebridge-platform-simplisafe",
+			"name" : "SimpliSafe Client",
 			"SerialNumber": "system serial",
 			"username" : "email",
 			"password" : "password",
 			"refresh_timer": "30" 
-    		}
-	]
-    }
+		}
+		]
+	}
 
 
 - The refresh timer is the amount of time in seconds for the system to updates its current status for the system and its sensors. Keep the setting around 30 seconds for systems other than the wifi versions. And don't go much lower than 10 seconds for those either.
