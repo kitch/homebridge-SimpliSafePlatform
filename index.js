@@ -15,15 +15,15 @@ var ss; //SimpliSafe Client
 
 function SimpliSafe(log, config, api) {
   var platform = this;
-  this.log = log;
-  this.config = config;
-  this.accessories = [];
+  platform.log = log;
+  platform.config = config;
+  platform.accessories = [];
   var ssClient = new API(log);
   ss = new API(config.SerialNumber);
 
   if (api) {
-    this.api = api;
-    this.api.on('didFinishLaunching', function() {
+    platform.api = api;
+    platform.api.on('didFinishLaunching', function() {
       ss.login_via_credentials(config.username, config.password)
       .then(function(){
         return platform.updateSensors(true);
@@ -36,7 +36,7 @@ function SimpliSafe(log, config, api) {
         },
         (platform.config.refresh_timer * 1000)
       );
-    }.bind(this));
+    }.bind(platform));
   }
 }
 
@@ -56,6 +56,9 @@ SimpliSafe.prototype.updateSensors = function(cached = false){
           platform.getSensorsServices(sensor, platform.getAccessory(sensor));
         }
       });
+    })
+    .catch(err=>{
+      platform.log(err);
     });
 }
 
@@ -63,24 +66,25 @@ SimpliSafe.prototype.getAccessory = function(sensor){
   var platform = this;
   var SystemAccessory;
   platform.accessories.forEach(accessory=> {
-    if (accessory.context.SerialNumber != sensor) return;
+    if (accessory.getService(Service.AccessoryInformation).getCharacteristic(Characteristic.SerialNumber).value.toString() != sensor.toString()) return;
     SystemAccessory = accessory;
     SystemAccessory.updateReachability(true);
   });
   //Not found create a new one;
+
   if (!SystemAccessory) {
     platform.log('Found new sensor', sensor, ss.sensors[sensor].name);
-    SystemAccessory = new Accessory(ss.SensorTypes[ss.sensors[sensor].type] + ' ' + sensor, UUIDGen.generate(ss.SensorTypes[ss.sensors[sensor].type] + ' ' + sensor));
+    SystemAccessory = new Accessory(ss.SensorTypes[ss.sensors[sensor].type] + ' ' + sensor.toString(), UUIDGen.generate(ss.SensorTypes[ss.sensors[sensor].type] + ' ' + sensor));
     SystemAccessory.context.SerialNumber = sensor;
 
     SystemAccessory.getService(Service.AccessoryInformation)
-      .setCharacteristic(Characteristic.SerialNumber, sensor)
+      .setCharacteristic(Characteristic.SerialNumber, sensor.toString())
       .setCharacteristic(Characteristic.Name, ss.sensors[sensor].name)
       .setCharacteristic(Characteristic.Manufacturer, 'SimpliSafe')
       .setCharacteristic(Characteristic.HardwareRevision, ss.sysVersion);
 
     platform.accessories.push(SystemAccessory);
-    platform.api.registerPlatformAccessories("homebridge-platform-simplisafe", "homebridge-platform-simplisafe", [SystemAccessory]);
+    platform.api.registerPlatformAccessories("homebridge-SimpliSafePlatform", "homebridge-SimpliSafePlatform", [SystemAccessory]);
   }
   return SystemAccessory;
 }
@@ -159,7 +163,7 @@ SimpliSafe.prototype.getSensorsServices = function(sensor, accessory){
 
 SimpliSafe.prototype.getAlarmState = function(callback){
     var platform = this;
-  	ss.get_Alarm_State()
+  ss.get_Alarm_State()
       .then(function(state) {
         switch (state.alarmState.toString().toLowerCase()) {
             case 'home':
@@ -175,38 +179,38 @@ SimpliSafe.prototype.getAlarmState = function(callback){
               callback(null, Characteristic.SecuritySystemTargetState.DISARM);
               break;
           };
-  		}, function() {
-  			callback(new Error('Failed to get alarm state'))
+  }, function() {
+  callback(new Error('Failed to get alarm state'))
   });
 };
 
 SimpliSafe.prototype.setAlarmState = function(state, callback) {
 // Set state in simplisafe 'off' or 'home' or 'away'
-	var platform = this;
+var platform = this;
   var ssState;
   switch (state) {
-		case Characteristic.SecuritySystemTargetState.STAY_ARM:
-		case Characteristic.SecuritySystemTargetState.NIGHT_ARM:
-			ssState = "home";
-			break;
-		case Characteristic.SecuritySystemTargetState.AWAY_ARM :
-			ssState = "away";
-			break;
-		case Characteristic.SecuritySystemTargetState.DISARM:
-			ssState = "off";
-			break;
+case Characteristic.SecuritySystemTargetState.STAY_ARM:
+case Characteristic.SecuritySystemTargetState.NIGHT_ARM:
+ssState = "home";
+break;
+case Characteristic.SecuritySystemTargetState.AWAY_ARM :
+ssState = "away";
+break;
+case Characteristic.SecuritySystemTargetState.DISARM:
+ssState = "off";
+break;
   }
   ss.set_Alarm_State(ssState)
   .then(function() {
-			callback(null, state);
-		}, function() {
-				callback(new Error('Failed to set target state to ' + state));
+callback(null, state);
+}, function() {
+callback(new Error('Failed to set target state to ' + state));
     });
 }
 
-SimpliSafe.prototype.configureAccessory = async function(accessory) {
+SimpliSafe.prototype.configureAccessory = function(accessory) {
   var platform = this;
-  if (accessory.getService(Service.SecuritySystem) && accessory.getService(Service.AccessoryInformation).getCharacteristic(Characteristic.SerialNumber).value == platform.config.SerialNumber ) {
+  if (accessory.getService(Service.AccessoryInformation).getCharacteristic(Characteristic.SerialNumber).value.toString() == platform.config.SerialNumber.toString()) {
     accessory.getService(Service.SecuritySystem)
       .getCharacteristic(Characteristic.SecuritySystemCurrentState)
       .on('get', (callback)=>platform.getAlarmState(callback));
@@ -217,9 +221,9 @@ SimpliSafe.prototype.configureAccessory = async function(accessory) {
          platform.setAlarmState(state, callback);
          accessory.getService(Service.SecuritySystem).setCharacteristic(Characteristic.SecuritySystemCurrentState, state);
       });
-  }
+  };
 
-  accessory.reachable = false;
+  accessory.reachable = true;
   platform.accessories.push(accessory);
 }
 
