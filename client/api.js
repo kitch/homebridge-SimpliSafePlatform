@@ -196,7 +196,7 @@ module.exports = class API {
 
     if (_access_token_expire && Date.now() >= _access_token_expire && !this._actively_refreshing){
             this._actively_refreshing = true;
-            await _refresh_access_token(this._refresh_token)
+            await this._refresh_access_token(this._refresh_token)
     }
     var url = new URL(URL_BASE + '/' + endpoint);
     if (params){
