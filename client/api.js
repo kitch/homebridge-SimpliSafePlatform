@@ -118,6 +118,7 @@ module.exports = class API {
     //Get systems associated to this account.
     var self = this;
     var subscription_resp = await this.get_subscription_data();
+    if (!subscription_resp) throw('Missing Sytem Data');
     for (var system_data of subscription_resp.subscriptions){
       if (system_data.location.system.serial === self.serial) {
           self.subId = system_data.sid;
@@ -134,7 +135,7 @@ module.exports = class API {
   };//End of function get_subscription_data
 
   async get_Sensors(cached = true) {
-  	var self = this;
+  var self = this;
     if (self.sysVersion==3) {
       var parsedBody = await self.request({
         method:'GET',
@@ -151,7 +152,7 @@ module.exports = class API {
       }
         return self.sensors;
     } else {
-    	var parsedBody = await self.request({
+    var parsedBody = await self.request({
         method:'GET',
         endpoint: 'subscriptions/' + self.subId + '/settings',
         params:{'settingsType': 'all', 'cached': cached.toString().toLowerCase()}
@@ -176,7 +177,7 @@ module.exports = class API {
   };//End of function get_Alarm_State
 
   async set_Alarm_State(value) {
-  	var self = this;
+  var self = this;
     if (self.sysVersion==3) {
       return await self.request({
        method:'post',
@@ -241,4 +242,3 @@ module.exports = class API {
   };//End of function Request
 
 };//end of Class API
-
